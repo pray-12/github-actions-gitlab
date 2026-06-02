@@ -1,0 +1,648 @@
+# GitHub Actions Security Scanning - Interview Questions & Answers
+
+
+```yaml
+name: Vprofile CICD Workflow
+on: 
+  push:
+    branches: 
+      - main
+
+  pull_request:
+    branches: 
+      - main
+
+  workflow_dispatch:
+
+  schedule:
+    - cron: "10 14 * * 1-5"   # After noon 2:10 pm, Mondat to Friday
+
+
+  
+permissions: 
+  contents: read
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Maven Build
+        run: mvn install
+
+      - name: Upload Build Artifact (WAR)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vprofile-app
+          path: target/*.war
+
+      - name: Notify if Build Fails
+        if: failure()
+        run: echo "🚨 Build job failed! Please check logs."
+
+
+  Testing:
+    runs-on: ubuntu-latest
+    needs: Build
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests on main branch
+        if: github.ref == 'refs/heads/main'
+        run: mvn test
+
+      - name: Checkstyle
+        if: github.ref == 'refs/heads/main'
+        run: mvn checkstyle:checkstyle
+
+      - name: Run tests on other branches
+        if: github.ref != 'refs/heads/main'
+        run: echo "Skipping unit tests and code analysis"
+
+  Security_Scan:
+    runs-on: ubuntu-latest
+    needs: Build
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: json
+          exit-code: 0
+          vuln-type: os,library
+          output: trivy-results.json
+
+      - name: Upload Trivy scan results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-scan-results
+          path: trivy-results.json
+
+```
+# What is Security Scanning?
+
+Security scanning is the process of identifying vulnerabilities, misconfigurations, secrets, malware, and security risks in your application, dependencies, containers, and infrastructure before deployment.
+
+Typical DevSecOps Pipeline:
+
+```text
+Code Push
+    ↓
+Build
+    ↓
+Unit Test
+    ↓
+Security Scan
+    ↓
+Docker Build
+    ↓
+Container Scan
+    ↓
+Deploy
+```
+
+---
+
+# Types of Security Scanning
+
+## 1. SAST (Static Application Security Testing)
+
+Analyzes source code without running the application.
+
+Tools:
+
+- SonarQube
+- Semgrep
+- CodeQL
+- Checkmarx
+
+Example Findings:
+
+```text
+SQL Injection
+Hardcoded Passwords
+XSS Vulnerabilities
+Code Smells
+```
+
+---
+
+## 2. Dependency Scanning
+
+Scans third-party libraries.
+
+Tools:
+
+- Dependabot
+- Snyk
+- OWASP Dependency Check
+
+Example:
+
+```xml
+log4j 2.14.0
+```
+
+May contain known vulnerabilities.
+
+---
+
+## 3. Container Scanning
+
+Scans Docker images.
+
+Tools:
+
+- Trivy
+- Grype
+- Clair
+
+Example:
+
+```dockerfile
+FROM ubuntu:18.04
+```
+
+Scanner identifies:
+
+```text
+Critical CVEs
+High Vulnerabilities
+```
+
+---
+
+## 4. Secret Scanning
+
+Detects exposed credentials.
+
+Examples:
+
+```text
+AWS Keys
+GitHub Tokens
+Database Passwords
+API Keys
+```
+
+Tools:
+
+- GitHub Secret Scanning
+- Gitleaks
+- TruffleHog
+
+---
+
+## 5. IaC Scanning
+
+Infrastructure as Code scanning.
+
+Files:
+
+```text
+Terraform
+CloudFormation
+Kubernetes YAML
+```
+
+Tools:
+
+- Checkov
+- Terrascan
+- tfsec
+
+Example Finding:
+
+```text
+S3 Bucket Public Access Enabled
+```
+
+---
+
+## 6. DAST (Dynamic Application Security Testing)
+
+Scans a running application.
+
+Tools:
+
+- OWASP ZAP
+- Burp Suite
+
+Checks:
+
+```text
+Authentication Issues
+Session Problems
+Runtime Vulnerabilities
+```
+
+---
+
+# Security Tools Commonly Used with GitHub Actions
+
+| Tool | Purpose |
+|--------|----------|
+| SonarQube | Code Quality + SAST |
+| CodeQL | GitHub Native SAST |
+| Trivy | Container Scanning |
+| OWASP Dependency Check | Dependency Scanning |
+| Snyk | Vulnerability Scanning |
+| Checkov | Terraform/K8s Scanning |
+| Gitleaks | Secret Detection |
+| OWASP ZAP | DAST |
+
+---
+
+# CodeQL Security Scanning
+
+GitHub's native security scanner.
+
+Example:
+
+```yaml
+name: CodeQL
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java
+
+      - uses: github/codeql-action/autobuild@v3
+
+      - uses: github/codeql-action/analyze@v3
+```
+
+---
+
+# Trivy Container Scanning
+
+Example:
+
+```yaml
+- name: Scan Docker Image
+  uses: aquasecurity/trivy-action@master
+  with:
+    image-ref: netflix:latest
+```
+
+Finds:
+
+```text
+Critical
+High
+Medium
+Low
+```
+
+Vulnerabilities.
+
+---
+
+# Gitleaks Secret Scanning
+
+Example:
+
+```yaml
+- name: Run Gitleaks
+  uses: gitleaks/gitleaks-action@v2
+```
+
+Detects:
+
+```text
+AWS Keys
+GitHub Tokens
+Private Keys
+Passwords
+```
+
+---
+
+# OWASP Dependency Check
+
+Example:
+
+```yaml
+- name: Dependency Scan
+  run: mvn org.owasp:dependency-check-maven:check
+```
+
+Finds:
+
+```text
+Known Vulnerable Libraries
+CVEs
+```
+
+---
+
+# Checkov IaC Scanning
+
+Example:
+
+```yaml
+- name: Check Terraform
+  uses: bridgecrewio/checkov-action@master
+```
+
+Scans:
+
+```text
+Terraform
+Kubernetes YAML
+Dockerfiles
+```
+
+---
+
+# Security Gate
+
+A deployment should fail when critical vulnerabilities exist.
+
+Example:
+
+```text
+Build
+ ↓
+Security Scan
+ ↓
+Critical Vulnerability Found
+ ↓
+Pipeline Failed
+```
+
+Deployment blocked.
+
+---
+
+# Security Scan Stage in Real Pipeline
+
+```text
+Git Push
+   ↓
+Build
+   ↓
+Unit Tests
+   ↓
+SonarQube Scan
+   ↓
+Dependency Scan
+   ↓
+Docker Build
+   ↓
+Trivy Scan
+   ↓
+Deploy
+```
+
+---
+
+# Frequently Asked Interview Questions
+
+## 1. What is Security Scanning in CI/CD?
+
+**Answer:**
+
+Security scanning is the automated process of identifying vulnerabilities, secrets, insecure configurations, and dependency issues before deployment.
+
+---
+
+## 2. Why should security scans be part of a CI/CD pipeline?
+
+**Answer:**
+
+Benefits:
+
+- Early vulnerability detection
+- Reduced security risk
+- Automated compliance
+- Faster remediation
+
+---
+
+## 3. What is SAST?
+
+**Answer:**
+
+Static Application Security Testing analyzes source code without executing the application.
+
+Examples:
+
+```text
+CodeQL
+SonarQube
+Semgrep
+```
+
+---
+
+## 4. What is DAST?
+
+**Answer:**
+
+Dynamic Application Security Testing analyzes a running application for security vulnerabilities.
+
+Examples:
+
+```text
+OWASP ZAP
+Burp Suite
+```
+
+---
+
+## 5. What is the difference between SAST and DAST?
+
+| SAST | DAST |
+|--------|--------|
+| Scans source code | Scans running application |
+| Early detection | Runtime detection |
+| Faster | More realistic testing |
+
+---
+
+## 6. What is Trivy used for?
+
+**Answer:**
+
+Trivy is used for:
+
+- Container Scanning
+- Filesystem Scanning
+- Kubernetes Scanning
+- Vulnerability Detection
+
+---
+
+## 7. What is CodeQL?
+
+**Answer:**
+
+CodeQL is GitHub's native static application security testing tool that identifies security vulnerabilities in source code.
+
+---
+
+## 8. What is Dependency Scanning?
+
+**Answer:**
+
+Dependency scanning checks third-party libraries for known vulnerabilities and CVEs.
+
+Example:
+
+```text
+Log4j
+Spring
+Apache Commons
+```
+
+---
+
+## 9. What is Secret Scanning?
+
+**Answer:**
+
+Secret scanning detects exposed credentials such as:
+
+```text
+AWS Keys
+GitHub Tokens
+Database Passwords
+```
+
+Tools:
+
+```text
+Gitleaks
+TruffleHog
+GitHub Secret Scanning
+```
+
+---
+
+## 10. What is IaC Scanning?
+
+**Answer:**
+
+Infrastructure as Code scanning checks Terraform, Kubernetes manifests, and cloud configurations for security issues.
+
+Tools:
+
+```text
+Checkov
+tfsec
+Terrascan
+```
+
+---
+
+## 11. What is a Security Gate?
+
+**Answer:**
+
+A security gate prevents deployment when security policies are violated.
+
+Example:
+
+```text
+Critical Vulnerability
+      ↓
+Pipeline Failed
+      ↓
+No Deployment
+```
+
+---
+
+## 12. What is Shift-Left Security?
+
+**Answer:**
+
+Shift-left security means performing security checks earlier in the development lifecycle rather than after deployment.
+
+Example:
+
+```text
+Developer
+    ↓
+Code Scan
+    ↓
+Build
+    ↓
+Deploy
+```
+
+---
+
+## 13. Which security tools have you used in GitHub Actions?
+
+**Answer:**
+
+Example answer:
+
+```text
+SonarQube
+Trivy
+CodeQL
+OWASP Dependency Check
+Gitleaks
+Checkov
+```
+
+---
+
+## 14. How do you scan Docker images in GitHub Actions?
+
+**Answer:**
+
+Using Trivy:
+
+```yaml
+- name: Scan Docker Image
+  uses: aquasecurity/trivy-action@master
+```
+
+---
+
+## 15. What security checks would you add to a production CI/CD pipeline?
+
+**Answer:**
+
+Recommended:
+
+```text
+SAST
+Dependency Scan
+Secret Scan
+Container Scan
+IaC Scan
+DAST
+```

@@ -1,0 +1,408 @@
+## 1. What is a trigger in GitHub Actions?
+
+A trigger is an event that starts a workflow execution.
+
+Triggers are defined using the `on` keyword.
+
+Example:
+
+```yaml
+on:
+  push:
+```
+
+When code is pushed to the repository, the workflow starts automatically.
+
+
+## 2. What is the purpose of the `on` keyword?
+
+The `on` keyword specifies the events that trigger a workflow.
+
+Example:
+
+```yaml
+on:
+  push:
+  pull_request:
+```
+
+The workflow runs when either a push or pull request event occurs.
+
+
+## 3. What is the difference between `push` and `pull_request` triggers?
+
+| push | pull_request |
+|--------|--------|
+| Runs when code is pushed | Runs when a PR is opened, synchronized, or updated |
+| Used for CI/CD pipelines | Used for validation before merging |
+| Executes after push | Executes during code review |
+
+Example:
+
+```yaml
+on:
+  push:
+```
+
+```yaml
+on:
+  pull_request:
+```
+
+
+## 4. How do you trigger a workflow manually?
+
+Use:
+
+```yaml
+on:
+  workflow_dispatch:
+```
+
+GitHub provides a **Run Workflow** button in the Actions tab.
+
+Flow:
+
+```text
+Actions
+   ↓
+Select Workflow
+   ↓
+Run Workflow
+```
+
+
+## 5. What is `workflow_dispatch`?
+
+`workflow_dispatch` allows users to manually start workflows from GitHub UI or API.
+
+Example:
+
+```yaml
+on:
+  workflow_dispatch:
+```
+
+Common use cases:
+
+- Production deployment
+- Rollback
+- Manual testing
+- Maintenance jobs
+
+
+## 6. What are Inputs in GitHub Actions?
+
+Inputs allow users to provide values when manually triggering a workflow using `workflow_dispatch`.
+
+Example:
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment Environment
+        required: true
+```
+
+User enters:
+
+```text
+dev
+staging
+production
+```
+
+
+## 7. How do you access input values inside a workflow?
+
+Syntax:
+
+```yaml
+${{ github.event.inputs.INPUT_NAME }}
+```
+
+Example:
+
+```yaml
+run: echo "${{ github.event.inputs.environment }}"
+```
+
+
+## 8. How do you create a required input?
+
+Example:
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment Name
+        required: true
+```
+
+The workflow cannot start until a value is provided.
+
+
+## 9. How do you provide a default value for an input?
+
+Example:
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment Name
+        required: true
+        default: dev
+```
+
+If the user doesn't change it, `dev` is used.
+
+
+## 10. What input types are supported in GitHub Actions?
+
+Common types:
+
+```yaml
+type: string
+```
+
+```yaml
+type: choice
+```
+
+```yaml
+type: boolean
+```
+
+```yaml
+type: environment
+```
+
+Example:
+
+```yaml
+environment:
+  description: Select Environment
+  required: true
+  type: choice
+  options:
+    - dev
+    - staging
+    - production
+```
+
+
+## 11. What is the `schedule` trigger?
+
+Used to run workflows automatically at specific times using cron expressions.
+
+Example:
+
+```yaml
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight UTC
+    or
+    - cron: '10 * * * *' # Runs every day at 10:00 UTC
+    or
+    - cron:  '10 4 * * 1-5' #  Runs every day at 2:10 pm IST on weekdays
+```
+
+Runs every day at midnight UTC.
+
+
+## 12. What is a cron expression?
+
+A cron expression defines when scheduled workflows execute.
+
+Format:
+
+```text
+* * * * *
+│ │ │ │ │
+│ │ │ │ └── Day of Week
+│ │ │ └──── Month
+│ │ └────── Day of Month
+│ └──────── Hour
+└────────── Minute
+```
+
+Example:
+
+```yaml
+cron: '0 * * * *'
+```
+
+Runs every hour.
+
+
+## 13. What is `repository_dispatch`?
+
+`repository_dispatch` allows external systems to trigger GitHub Actions using GitHub APIs.
+
+Example:
+
+```yaml
+on:
+  repository_dispatch:
+    types:
+      - deploy
+```
+
+Use cases:
+
+- Jenkins integration
+- External deployment systems
+- Custom automation platforms
+
+
+## 14. How do branch filters work?
+
+Branch filters restrict workflow execution to specific branches.
+
+Example:
+
+```yaml
+on:
+  push:
+    branches:
+      - main
+```
+
+Workflow runs only when code is pushed to `main`.
+
+
+## 15. What is `branches-ignore`?
+
+Used to exclude specific branches.
+
+Example:
+
+```yaml
+on:
+  push:
+    branches-ignore:
+      - feature/*
+```
+
+Ignored branches:
+
+```text
+feature/login
+feature/payment
+feature/cart
+```
+
+
+## 16. What are Path Filters?
+
+Path filters trigger workflows only when specific files or directories change.
+
+Example:
+
+```yaml
+on:
+  push:
+    paths:
+      - src/**
+```
+
+Workflow runs only when files inside `src/` change.
+
+
+## 17. What is the difference between `paths` and `paths-ignore`?
+
+| paths | paths-ignore |
+|---------|---------|
+| Includes matching files | Excludes matching files |
+| Workflow runs if file matches | Workflow skips if file matches |
+
+Example:
+
+```yaml
+paths:
+  - src/**
+```
+
+```yaml
+paths-ignore:
+  - docs/**
+```
+
+
+## 18. Can a workflow have multiple triggers?
+
+Yes.
+
+Example:
+
+```yaml
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+```
+
+Workflow starts when **any** of these events occur.
+
+
+## 19. What happens when both branch and path filters are configured?
+
+Both conditions must be satisfied.
+
+Example:
+
+```yaml
+on:
+  push:
+    branches:
+      - main
+
+    paths:
+      - src/**
+```
+
+Workflow runs only if:
+
+```text
+Push is made to main
+AND
+A file inside src changes
+```
+
+
+## 20. What are the most commonly used triggers in real-world projects?
+
+Most frequently used:
+
+```yaml
+push
+pull_request
+workflow_dispatch
+schedule
+```
+
+Typical CI/CD flow:
+
+```text
+push
+   ↓
+Build
+
+pull_request
+   ↓
+Validation
+
+workflow_dispatch
+   ↓
+Production Deployment
+
+schedule
+   ↓
+Nightly Jobs
+```

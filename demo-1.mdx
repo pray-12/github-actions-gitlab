@@ -1,0 +1,455 @@
+# Create a simple CI pipeline
+
+https://github.com/pray-12/github-action-project
+```yaml
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Compile Application
+        run: mvn clean compile
+
+  Testing:
+    runs-on: ubuntu-latest
+    needs: Build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Run Tests
+        run: mvn test
+
+      - name: Checkstyle Analysis
+        run: mvn checkstyle:checkstyle
+```
+
+# GitHub Actions Interview Questions and Answers
+
+## 1. What is the purpose of `needs` in GitHub Actions?
+
+### Answer
+
+The `needs` keyword is used to define job dependencies.
+
+It ensures that a job runs only after the specified job(s) complete successfully.
+
+### Example
+
+```yaml
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+
+  Testing:
+    runs-on: ubuntu-latest
+    needs: Build
+```
+
+In this example:
+
+- `Build` runs first.
+- `Testing` starts only if `Build` succeeds.
+- If `Build` fails, `Testing` is skipped.
+
+### Benefits
+
+- Controls execution order.
+- Creates CI/CD pipelines with multiple stages.
+- Prevents unnecessary job execution when a dependency fails.
+
+---
+
+## 2. What is the difference between `mvn compile`, `mvn package`, and `mvn install`?
+
+### Answer
+
+These commands represent different phases of the Maven lifecycle.
+
+| Command | Purpose |
+|----------|----------|
+| `mvn compile` | Compiles the source code |
+| `mvn package` | Compiles, tests, and creates a JAR/WAR |
+| `mvn install` | Packages the application and installs it into the local Maven repository |
+
+### Lifecycle Flow
+
+```text
+validate
+compile
+test
+package
+verify
+install
+deploy
+```
+
+### Example
+
+```bash
+mvn compile
+```
+
+Only compiles source code.
+
+```bash
+mvn package
+```
+
+Creates a JAR/WAR file.
+
+```bash
+mvn install
+```
+
+Creates the artifact and stores it in:
+
+```text
+~/.m2/repository
+```
+
+---
+
+## 3. Why do we use `actions/checkout@v4`?
+
+### Answer
+
+GitHub runners do not automatically contain your repository code.
+
+`actions/checkout@v4` downloads the repository contents into the runner.
+
+### Example
+
+```yaml
+- uses: actions/checkout@v4
+```
+
+Without checkout:
+
+```bash
+mvn test
+```
+
+would fail because the project files do not exist on the runner.
+
+### Benefits
+
+- Downloads source code.
+- Supports private repositories.
+- Allows builds, tests, and deployments.
+
+---
+
+## 4. What does `actions/setup-java` do?
+
+### Answer
+
+`actions/setup-java` installs and configures Java on the GitHub Actions runner.
+
+### Example
+
+```yaml
+- uses: actions/setup-java@v4
+  with:
+    distribution: temurin
+    java-version: '17'
+```
+
+### What It Does
+
+- Installs Java.
+- Sets `JAVA_HOME`.
+- Adds Java to the system PATH.
+- Supports Maven dependency caching.
+
+### Supported Distributions
+
+- Temurin
+- Oracle
+- Corretto
+- Zulu
+
+---
+
+## 5. What happens if the Build job fails?
+
+### Answer
+
+Any job depending on the failed job will not execute.
+
+### Example
+
+```yaml
+Testing:
+  needs: Build
+```
+
+If:
+
+```text
+Build = Failed
+```
+
+then:
+
+```text
+Testing = Skipped
+```
+
+### Benefits
+
+- Saves CI resources.
+- Prevents invalid deployments.
+- Maintains pipeline integrity.
+
+---
+
+## 6. Why are jobs executed on separate runners?
+
+### Answer
+
+Each GitHub Actions job runs in an isolated virtual machine.
+
+### Example
+
+```yaml
+Build
+```
+
+runs on:
+
+```text
+Runner A
+```
+
+```yaml
+Testing
+```
+
+runs on:
+
+```text
+Runner B
+```
+
+### Advantages
+
+- Security isolation.
+- Parallel execution.
+- Independent environments.
+- Better scalability.
+
+### Important
+
+Files created in one job are not automatically available in another job.
+
+---
+
+## 7. What is Checkstyle and why is it used?
+
+### Answer
+
+Checkstyle is a static code analysis tool used to enforce coding standards in Java projects.
+
+### Example
+
+```bash
+mvn checkstyle:checkstyle
+```
+
+### Checks Performed
+
+- Naming conventions
+- Method length
+- Indentation
+- Unused imports
+- Formatting standards
+
+### Benefits
+
+- Improves code readability.
+- Maintains coding consistency.
+- Detects style violations early.
+
+### Sample Violation
+
+```java
+public class test {
+}
+```
+
+Class name should start with an uppercase letter.
+
+Correct:
+
+```java
+public class Test {
+}
+```
+
+---
+
+## 8. How can artifacts be shared between jobs?
+
+### Answer
+
+Artifacts can be uploaded in one job and downloaded in another.
+
+### Upload Artifact
+
+```yaml
+- name: Upload Artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: app
+    path: target/*.jar
+```
+
+### Download Artifact
+
+```yaml
+- name: Download Artifact
+  uses: actions/download-artifact@v4
+  with:
+    name: app
+```
+
+### Use Cases
+
+- Sharing build outputs.
+- Deployment packages.
+- Test reports.
+- Security scan reports.
+
+---
+
+## 9. What is the difference between steps and jobs?
+
+### Answer
+
+### Step
+
+A single task within a job.
+
+Example:
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+
+  - run: mvn test
+```
+
+### Job
+
+A collection of steps executed on the same runner.
+
+Example:
+
+```yaml
+jobs:
+  Build:
+    steps:
+      - uses: actions/checkout@v4
+      - run: mvn compile
+```
+
+### Comparison
+
+| Steps | Jobs |
+|---------|---------|
+| Run within a job | Contain multiple steps |
+| Share the same runner | Run on separate runners |
+| Execute sequentially | Can execute in parallel |
+| Share filesystem | Do not share filesystem |
+
+---
+
+## 10. How would you trigger this workflow only on pull requests?
+
+### Answer
+
+Use the `pull_request` event instead of `push`.
+
+### Example
+
+```yaml
+on:
+  pull_request:
+    branches:
+      - main
+```
+
+### Trigger Conditions
+
+The workflow runs when:
+
+- A pull request is created.
+- A pull request is updated.
+- New commits are pushed to the pull request.
+
+### Example Workflow
+
+```yaml
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: mvn test
+```
+
+### Why Use Pull Request Triggers?
+
+- Validate code before merging.
+- Run automated tests.
+- Enforce code quality checks.
+- Prevent broken code from reaching the main branch.
+
+---
+
+# Quick Revision
+
+| Topic | Key Point |
+|---------|-----------|
+| `needs` | Creates job dependency |
+| `mvn compile` | Compiles source code |
+| `mvn package` | Creates JAR/WAR |
+| `mvn install` | Installs artifact in local Maven repository |
+| `checkout` | Downloads repository code |
+| `setup-java` | Installs Java on runner |
+| Build Failure | Dependent jobs are skipped |
+| Separate Runners | Jobs are isolated |
+| Checkstyle | Enforces coding standards |
+| Artifacts | Share files between jobs |
+| Step | Single task |
+| Job | Collection of steps |
+| Pull Request Trigger | Runs workflow for PR validation |

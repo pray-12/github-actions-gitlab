@@ -1,0 +1,299 @@
+````mdx id="docker-ecr-short-notes"
+# Build and Push Docker Image to Amazon ECR - Quick Notes
+
+https://github.com/pray-12/github-action-project
+
+## Step 1: Create Amazon ECR Repository
+
+Go to:
+
+```text
+AWS Console
+    ↓
+Amazon ECR
+    ↓
+Repositories
+    ↓
+Create Repository
+```
+
+Example:
+
+```text
+Repository Name: vprofile-app
+```
+
+After creation, note the repository URI:
+
+```text
+123456789012.dkr.ecr.us-east-1.amazonaws.com/vprofile-app
+```
+
+## Step 2: Create IAM User and Access Keys
+
+Create an IAM user with ECR permissions.
+
+Example permissions:
+
+```text
+AmazonEC2ContainerRegistryFullAccess
+```
+
+Generate:
+
+```text
+AWS_ACCESS_KEY_ID
+
+AWS_SECRET_ACCESS_KEY
+```
+
+## Step 3: Store Credentials in GitHub Secrets
+
+Go to:
+
+```text
+Repository
+   ↓
+Settings
+   ↓
+Secrets and Variables
+   ↓
+Actions
+```
+
+Create the following secrets:
+
+```text
+AWS_ACCESS_KEY_ID
+
+AWS_SECRET_ACCESS_KEY
+
+AWS_REGION - Environment Variable
+
+ECR_REPOSITORY
+```
+
+Example:
+
+```text
+AWS_REGION=us-east-1
+
+ECR_REPOSITORY=vprofile-app
+```
+
+## Step 4: Create Dockerfile
+
+```bash
+Docker-files/app/multistage
+```
+
+Example:
+
+```dockerfile
+FROM maven:3.9.9-eclipse-temurin-21-jammy AS BUILD_IMAGE
+
+COPY ./app
+
+WORKDIR /app
+
+RUN mvn install
+
+FROM tomcat:10-jdk21
+
+RUN rm -rf /usr/local/tomcat/webapps/*
+
+COPY --from=BUILD_IMAGE /app/target/vprofile-v2.war /usr/local/tomcat/webapps/ROOT.war
+
+EXPOSE 8080
+
+CMD ["catalina.sh", "run"]
+```
+
+## Step 5: Create GitHub Actions Workflow
+
+File:
+
+```text
+.github/workflows/ecr-push.yml
+```
+
+Workflow:
+
+```yaml
+name: Vprofile CICD Workflow
+on: 
+  push:
+    branches: 
+      - main
+
+  pull_request:
+    branches: 
+      - main
+
+  workflow_dispatch:
+
+  schedule:
+    - cron: "10 14 * * 1-5"   # After noon 2:10 pm, Mondat to Friday
+
+env:
+  ECR_REPOSITORY: 'vprofile-appimage' # Environment Variable name of the ECR repository
+  
+permissions: 
+  contents: read
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Maven Build
+        run: mvn install
+
+      - name: Upload Build Artifact (WAR)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vprofile-app
+          path: target/*.war
+
+      - name: Notify if Build Fails
+        if: failure()
+        run: echo "🚨 Build job failed! Please check logs."
+
+
+  Testing:
+    runs-on: ubuntu-latest
+    needs: Build
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests on main branch
+        if: github.ref == 'refs/heads/main'
+        run: mvn test
+
+      - name: Checkstyle
+        if: github.ref == 'refs/heads/main'
+        run: mvn checkstyle:checkstyle
+
+      - name: Run tests on other branches
+        if: github.ref != 'refs/heads/main'
+        run: echo "Skipping unit tests and code analysis"
+
+  Security_Scan:
+    runs-on: ubuntu-latest
+    needs: Build
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: json
+          exit-code: 0
+          vuln-type: os,library
+          output: trivy-results.json
+
+      - name: Upload Trivy scan results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-scan-results
+          path: trivy-results.json
+
+  BUILD_AND_PUBLISH:
+    name: BUILD_AND_PUBLISH
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [Build, Testing, Security_Scan]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr 
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -f Docker-files/app/multistage/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+```
+
+# Workflow Execution Flow
+
+```text
+Push Code
+    ↓
+GitHub Actions Triggered
+    ↓
+Checkout Source Code
+    ↓
+Configure AWS Credentials
+    ↓
+Login to Amazon ECR
+    ↓
+Build Docker Image
+    ↓
+Tag Docker Image
+    ↓
+Push Docker Image to ECR
+    ↓
+Image Available in ECR
+```
+
+---
+
+# Interview Answer (Short Version)
+
+### How do you build and push a Docker image to Amazon ECR using GitHub Actions?
+
+1. Create an Amazon ECR repository.
+2. Create an IAM user with ECR permissions.
+3. Generate AWS Access Key and Secret Key.
+4. Store credentials in GitHub Secrets.
+5. Create a Dockerfile for the application.
+6. Use `aws-actions/configure-aws-credentials` to authenticate with AWS.
+7. Use `aws-actions/amazon-ecr-login` to log in to ECR.
+8. Build the Docker image using `docker build`.
+9. Tag the image with the ECR repository URI.
+10. Push the image using `docker push`.
+
+Pipeline Flow:
+
+```text
+GitHub Push
+     ↓
+Build Docker Image
+     ↓
+Authenticate with AWS
+     ↓
+Login to ECR
+     ↓
+Tag Image
+     ↓
+Push Image to ECR
+```

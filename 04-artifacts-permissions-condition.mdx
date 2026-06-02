@@ -1,0 +1,604 @@
+# GitHub Actions Artifacts, Permissions, and Conditions - Interview Questions & Answers
+
+# Part 1: Artifacts
+
+## 1. What are Artifacts in GitHub Actions?
+
+
+Artifacts are files generated during a workflow that can be stored and downloaded later.
+
+Examples:
+
+- JAR files
+- WAR files
+- Test Reports
+- Coverage Reports
+- Build Logs
+- Docker Scan Reports
+
+Example:
+
+```text
+Build Application
+       ↓
+app.jar Generated
+       ↓
+Upload Artifact
+       ↓
+Download Later
+```
+
+---
+
+## 2. Why are Artifacts used?
+
+
+Artifacts are used to:
+
+- Share files between jobs
+- Store build outputs
+- Preserve reports
+- Download files after workflow completion
+
+---
+
+## 3. How do you upload an Artifact?
+
+
+Using:
+
+```yaml
+# This step uploads an artifact (file or files) from the build to GitHub Actions.
+steps:
+  - name: Upload Artifact         # The name for this workflow step
+    uses: actions/upload-artifact@v4  # Uses the official GitHub action to upload artifacts
+    with:
+      name: application          # The name given to the uploaded artifact
+      path: target/*.jar         # The path or file pattern to upload (all .jar files in the target folder)
+```
+
+## 4. How do you download an Artifact?
+
+Using:
+
+```yaml
+- name: Download Artifact
+  uses: actions/download-artifact@v4
+  with:
+    name: application
+```
+
+## 5. Can Artifacts be shared between jobs?
+
+
+Yes.
+
+Example:
+
+```text
+Build Job
+    ↓
+Upload app.jar
+    ↓
+Test Job
+    ↓
+Download app.jar
+```
+
+## 6. What is the difference between Artifacts and Cache?
+
+
+| Artifact | Cache |
+|-----------|-----------|
+| Stores workflow outputs | Stores dependencies |
+| Used between jobs | Used to speed up builds |
+| Downloadable | Not usually downloaded |
+| Example: JAR | Example: Maven repo |
+
+Example:
+
+```text
+Artifact → app.jar
+
+Cache → ~/.m2/repository
+```
+
+---
+
+## 7. How long are Artifacts retained?
+
+
+Artifacts have a configurable retention period.
+
+Example:
+
+```yaml
+- uses: actions/upload-artifact@v4
+  with:
+    name: reports
+    path: reports/
+    retention-days: 7
+```
+
+---
+
+## 8. Where can you download Artifacts?
+
+
+```text
+Repository
+   ↓
+Actions
+   ↓
+Workflow Run
+   ↓
+Artifacts
+```
+
+---
+
+## 9. What are common Artifact examples in CI/CD?
+
+
+```text
+app.jar
+test-report.html
+coverage.xml
+trivy-report.txt
+sonarqube-report
+```
+
+---
+
+## 10. When would you use Artifacts in a deployment pipeline?
+
+
+Build once and deploy the same artifact to multiple environments.
+
+```text
+Build
+ ↓
+Artifact (app.jar)
+ ↓
+Dev
+ ↓
+Stage
+ ↓
+Production
+```
+
+---
+
+# Part 2: Permissions
+
+## 11. What are Permissions in GitHub Actions?
+
+
+Permissions control what the workflow can access inside GitHub.
+
+Examples:
+
+- Repository contents
+- Pull requests
+- Issues
+- Packages
+- Deployments
+---
+
+## 12. What is the default GitHub token?
+
+
+GitHub automatically creates:
+
+```yaml
+${{ secrets.GITHUB_TOKEN }}
+```
+
+for every workflow run.
+
+Used for authentication within GitHub.
+
+---
+
+## 13. Why should permissions be restricted?
+
+
+Security best practice.
+
+Principle of Least Privilege:
+
+```text
+Give only required access
+```
+
+Reduces risk of misuse or compromise.
+
+---
+
+## 14. How do you define workflow permissions?
+
+
+Example:
+
+```yaml
+permissions:
+  contents: read
+```
+Users can read repository files and clone the repository.
+Users cannot modify repository contents. Only workflow can modify repository contents.
+
+## 15. What does `contents: read` mean?
+
+
+Allows:
+
+```text
+Read repository files
+Clone repository
+Checkout code
+```
+
+Prevents modifying repository contents.
+
+---
+
+## 16. What does `contents: write` allow?
+
+
+Allows:
+
+```text
+Create commits
+Push changes
+Create tags
+Modify repository contents
+```
+
+Example use case:
+
+```text
+Version bump automation
+```
+
+---
+
+## 17. What permissions are commonly used?
+
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  packages: write
+```
+
+issues: write - allows to create issues and modify issues.
+packages: write - allows to create packages and modify packages.
+
+## 18. Can permissions be set at job level?
+
+
+Yes.
+
+Workflow level:
+
+```yaml
+permissions:
+  contents: read
+```
+
+Job level:
+
+```yaml
+jobs:
+  deploy:
+    permissions:
+      contents: write
+```
+
+Job permissions override workflow permissions.
+
+---
+
+## 19. Why is `GITHUB_TOKEN` safer than PAT?
+
+
+Because:
+
+- Automatically generated
+- Automatically rotated
+- Scoped to workflow
+- No manual management
+
+---
+
+## 20. What is the Principle of Least Privilege?
+
+
+Grant only the permissions necessary to perform a task.
+
+Example:
+
+```yaml
+permissions:
+  contents: read
+```
+
+instead of:
+
+```yaml
+permissions: write-all
+```
+
+# Part 3: Conditions
+
+## 21. What are Conditions in GitHub Actions?
+
+
+Conditions determine whether a job or step should execute.
+
+Keyword:
+
+```yaml
+if:
+```
+
+## 22. How do you run a job only on the main branch?
+
+
+```yaml
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+```
+
+## 23. How do you run a step only when previous steps succeed?
+
+
+Default behavior.
+
+Or explicitly:
+
+```yaml
+if: success()
+```
+
+---
+
+## 24. What does `success()` do?
+
+
+Runs only if previous steps/jobs succeeded.
+
+Example:
+
+```yaml
+if: success()
+```
+
+---
+
+## 25. What does `failure()` do?
+
+
+Runs only when previous steps fail.
+
+Example:
+
+```yaml
+if: failure()
+run: echo "Previous steps failed"
+```
+
+Use case:
+
+```text
+Send Failure Notification
+```
+
+---
+
+## 26. What does `always()` do?
+
+
+Runs regardless of success or failure.
+
+Example:
+
+```yaml
+if: always()
+```
+
+Use case:
+
+```text
+Upload Logs
+Cleanup Resources
+```
+
+---
+
+## 27. What does `cancelled()` do?
+
+
+Runs when a workflow is cancelled.
+
+Example:
+
+```yaml
+if: cancelled()
+```
+
+---
+
+## 28. How do you run a job only for Pull Requests?
+
+
+```yaml
+if: github.event_name == 'pull_request'
+```
+
+---
+
+## 29. How do you run a deployment only in Production?
+
+
+```yaml
+if: github.event.inputs.environment == 'production'
+```
+
+Example:
+
+```yaml
+workflow_dispatch:
+  inputs:
+    environment:
+```
+
+---
+
+## 30. What is a practical example of conditions?
+
+
+```yaml
+deploy:
+  if: github.ref == 'refs/heads/main'
+```
+
+Meaning:
+
+```text
+Push to feature branch
+     ↓
+No Deployment
+
+Push to main
+     ↓
+Deployment Runs
+```
+
+---
+
+# Frequently Asked Interview Questions
+
+### Q1. What is the difference between Artifact and Cache?
+
+
+Artifact stores outputs.
+
+Cache stores dependencies.
+
+---
+
+### Q2. How do you transfer files between jobs?
+
+
+Using:
+
+```yaml
+actions/upload-artifact
+actions/download-artifact
+```
+
+---
+
+### Q3. What is GITHUB_TOKEN?
+
+
+An automatically generated authentication token provided by GitHub for workflow operations.
+
+---
+
+### Q4. Why should permissions be minimized?
+
+
+To follow security best practices and reduce attack surface.
+
+---
+
+### Q5. Difference between `success()`, `failure()`, and `always()`?
+
+| Function | Executes When |
+|-----------|-----------|
+| success() | Previous steps succeed |
+| failure() | Previous steps fail |
+| always() | Always runs |
+
+---
+
+### Q6. How do you deploy only from the main branch?
+
+
+```yaml
+if: github.ref == 'refs/heads/main'
+```
+
+---
+
+### Q7. Can permissions be configured per job?
+
+
+Yes.
+
+---
+
+### Q8. What is the retention period for Artifacts?
+
+
+Configurable using:
+
+```yaml
+retention-days:
+```
+
+---
+
+### Q9. What is the Principle of Least Privilege?
+
+
+Grant only the minimum permissions required.
+
+---
+
+### Q10. Why are conditions useful?
+
+
+They allow workflows to make decisions and execute different logic based on events, branches, environments, or workflow outcomes.
+
+---
+
+# Quick Revision
+
+```text
+ARTIFACTS
+---------
+Upload Build Outputs
+Share Files Between Jobs
+Download Later
+
+upload-artifact
+download-artifact
+
+PERMISSIONS
+-----------
+contents: read
+contents: write
+
+GITHUB_TOKEN
+
+Principle of Least Privilege
+
+CONDITIONS
+----------
+if:
+
+success()
+failure()
+always()
+cancelled()
+
+Common:
+if: github.ref == 'refs/heads/main'
+if: github.event_name == 'pull_request'
+```
