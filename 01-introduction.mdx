@@ -1,213 +1,85 @@
-**GitHub Actions** is a cloud-native automation platform integrated directly into GitHub. It allows you to automatically build, test, and deploy code whenever specific repository events occur, such as pushing code or opening a pull request.
+# GitHub Actions — Introduction
 
-## Core Concepts
+## 1. What is GitHub Actions?
 
-### 1. Workflows
+**Answer:**
 
-A YAML file that automates CI/CD processes.
+GitHub Actions is a CI/CD automation platform integrated into GitHub.
 
-Locate the `.github/workflows` directory in your repository.
+It allows us to automatically **build, test, scan, package, and deploy** applications when something happens in the repository, such as a code push or pull request.
 
-When an event occurs (push, pull request, etc.), GitHub executes the workflow.
+For example:
 
-### 2. Job
-
-A job is a set of steps that are executed sequentially.
-
-or
-
-A collection of steps executed on a runner.
-
-### 3. Step
-
-An individual task within a job.
-
-### 4. Runner
-
-A machine that executes workflow jobs.
-
-### 5. Action
-
-Reusable automation component.
-
-
-## Anatomy of a Workflow File
-
-```yaml
-Workflow
- │
- ├── name
- │
- ├── on
- │
- └── jobs
-      │
-      ├── runs-on
-      │
-      └── steps
-            │
-            ├── uses
-            └── run
+```text
+Developer pushes code
+        ↓
+GitHub Actions starts
+        ↓
+Build
+        ↓
+Test
+        ↓
+Security Scan
+        ↓
+Docker Build
+        ↓
+Push Image to ECR
+        ↓
+Deploy
 ```
 
-### 1. name
+So, instead of manually performing these tasks, GitHub Actions automates them.
 
-The name of the workflow.
+---
 
-```yaml
-name: Build and Deploy
-```
+## 2. What is a workflow in GitHub Actions?
 
-### 2. on (Trigger)
+**Answer:**
 
-Defines when the workflow should run.
+A **workflow** is an automated CI/CD process defined in a YAML file.
 
-```yaml
-on:
-  push:
-```
-
-```yaml
-Git Push
-   ↓
-Workflow Starts
-```
-
-### 3. jobs (Steps)
-
-Defines the jobs to be executed.
-
-```yaml
-jobs:
-  build:
-  test:
-  deploy:
-```
-
-```yaml
-Workflow
-   │
-   ├── Build Job
-   ├── Test Job
-   └── Deploy Job
-```
-
-### 4. runs-on
-
-Specifies where the job executes.
-
-```yaml
-runs-on: ubuntu-latest
-or
-runs-on: self-hosted
-or
-runs-on: windows-latest
-```
-```yaml
-Ubuntu VM
-   ↓
-Execute Job
-   ↓
-Destroy VM
-```
-
-### 5. steps
-
-Defines the steps to be executed.
-
-```yaml
-steps:
-  - run: echo "Step 1"
-
-  - run: echo "Step 2"
-```
-
-### 6. uses
-
-Runs a reusable GitHub Action.
-
-```yaml
-uses: actions/checkout@v4 # checkout the repository
-or
-- uses: actions/setup-java@v4 # Install Java automatically
-```
-
-### 7. run
-
-Executes a shell command.
-
-```yaml
-- run: echo "Hello, world!"
-or
-- run: npm install
-or
-
-- name: Build App
-  run: mvn clean package
-```
-
-## Example Workflow
-
-```yaml
-name: Java CI
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
-    steps:
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Install Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Build Application
-        run: mvn clean package
-
-      - name: Run Tests
-        run: mvn test
-```
-
-Flow of a Workflow
-
-```yaml
-Push Code
-    ↓
-Workflow Triggered
-    ↓
-Create Ubuntu VM
-    ↓
-Checkout Code
-    ↓
-Install Java
-    ↓
-Build Project
-    ↓
-Run Tests
-```
-
-## 1. What is a GitHub Actions workflow?
-
-A workflow is an automated process defined in a YAML file stored inside:
+Workflow files are stored inside:
 
 ```text
 .github/workflows/
 ```
 
-It contains triggers, jobs, and steps that automate tasks such as building, testing, and deploying applications.
+For example:
 
-## 2. What are the main components of a GitHub Actions workflow?
+```text
+.github/
+└── workflows/
+    └── ci.yml
+```
+
+A workflow defines:
+
+* When the pipeline should run
+* What jobs should execute
+* Which machine should execute the jobs
+* What steps should be performed
+
+Think of a workflow as the **complete CI/CD pipeline**.
+
+```text
+Workflow
+   │
+   ├── Trigger
+   │
+   └── Jobs
+        │
+        ├── Build
+        ├── Test
+        └── Deploy
+```
+
+---
+
+## 3. What are the main components of a GitHub Actions workflow?
+
+**Answer:**
+
+The important components are:
 
 ```text
 Workflow
@@ -220,27 +92,95 @@ Workflow
            └── run
 ```
 
-- `name` → Workflow name
-- `on` → Trigger event
-- `jobs` → Collection of tasks
-- `runs-on` → Runner machine
-- `steps` → Individual tasks
-- `uses` → Reusable action
-- `run` → Shell command
+You can remember them like this:
 
-## 3. What is the difference between a workflow, job, and step?
+| Component | Meaning                         |
+| --------- | ------------------------------- |
+| `name`    | Name of the workflow            |
+| `on`      | When the workflow runs          |
+| `jobs`    | Work that needs to be performed |
+| `runs-on` | Machine where the job runs      |
+| `steps`   | Individual tasks inside a job   |
+| `uses`    | Uses a reusable action          |
+| `run`     | Executes a shell command        |
 
-| Component | Description |
-|------------|------------|
-| Workflow | Complete automation pipeline |
-| Job | Group of related steps |
-| Step | Single command or action |
+---
+
+## 4. What is the `name` field?
+
+**Answer:**
+
+`name` defines the name of the workflow.
 
 Example:
 
 ```yaml
+name: Java CI
+```
+
+This name appears in the GitHub Actions UI.
+
+It does not control how the pipeline works. It is mainly used to identify the workflow.
+
+---
+
+## 5. What is the `on` keyword?
+
+**Answer:**
+
+`on` defines **when the workflow should start**.
+
+For example:
+
+```yaml
+on:
+  push:
+```
+
+This means:
+
+> Run the workflow whenever code is pushed to the repository.
+
+Another example:
+
+```yaml
+on:
+  pull_request:
+```
+
+This runs the workflow when a pull request event occurs.
+
+Common triggers are:
+
+```text
+push
+pull_request
+workflow_dispatch
+schedule
+release
+```
+
+So remember:
+
+```text
+on = When should my pipeline start?
+```
+
+---
+
+## 6. What is a job in GitHub Actions?
+
+**Answer:**
+
+A **job** is a collection of steps that are executed together on a runner.
+
+For example:
+
+```yaml
 jobs:
   build:
+    runs-on: ubuntu-latest
+
     steps:
       - run: mvn clean package
       - run: mvn test
@@ -248,21 +188,97 @@ jobs:
 
 Here:
 
-- Workflow = Entire YAML file
-- Job = build
-- Steps = mvn commands
+```text
+Job: build
+   │
+   ├── Build application
+   └── Run tests
+```
 
-## 4. What is a runner in GitHub Actions?
+A workflow can contain multiple jobs.
 
-A runner is a machine that executes workflow jobs.
+For example:
 
-GitHub-hosted runners:
+```text
+Workflow
+   │
+   ├── Build Job
+   ├── Test Job
+   └── Deploy Job
+```
+
+---
+
+## 7. What is a step?
+
+**Answer:**
+
+A **step** is an individual task inside a job.
+
+For example:
+
+```yaml
+steps:
+  - run: mvn clean package
+  - run: mvn test
+```
+
+There are two steps here:
+
+```text
+Step 1 → Build application
+Step 2 → Run tests
+```
+
+Steps inside the same job normally execute **sequentially**.
+
+So:
+
+```text
+Job
+ │
+ ├── Step 1
+ │
+ ├── Step 2
+ │
+ └── Step 3
+```
+
+---
+
+## 8. What is a runner?
+
+**Answer:**
+
+A **runner is the machine that executes a job**.
+
+For example:
 
 ```yaml
 runs-on: ubuntu-latest
 ```
 
-Other options:
+GitHub provides a machine for the job and executes the steps on it.
+
+For example:
+
+```text
+GitHub Actions
+      ↓
+Ubuntu Runner
+      ↓
+Checkout Code
+      ↓
+Build
+      ↓
+Test
+```
+
+Common GitHub-hosted runners include:
+
+```yaml
+runs-on: ubuntu-latest
+```
 
 ```yaml
 runs-on: windows-latest
@@ -272,110 +288,256 @@ runs-on: windows-latest
 runs-on: macos-latest
 ```
 
-Self-hosted runner:
+You can also use your own machine using:
 
 ```yaml
 runs-on: self-hosted
 ```
 
-## 5. What is the purpose of the `on` keyword?
+---
 
-The `on` keyword specifies when a workflow should be triggered.
+## 9. What is the difference between a GitHub-hosted runner and a self-hosted runner?
 
-Example:
+**Answer:**
 
-```yaml
-on:
-  push:
-```
+### GitHub-hosted runner
 
-Common triggers:
-
-- push
-- pull_request
-- workflow_dispatch
-- schedule
-- release
-
-## 6. What is the difference between `uses` and `run`?
-
-| uses | run |
-|--------|--------|
-| Executes an existing action | Executes shell commands |
-| Reusable | Custom commands |
-| Downloaded from GitHub Marketplace | Runs directly on runner |
-
-Example:
+GitHub provides and manages the machine.
 
 ```yaml
-uses: actions/checkout@v4
+runs-on: ubuntu-latest
 ```
+
+You don't have to maintain the operating system or runner machine.
+
+### Self-hosted runner
+
+You provide and manage the machine.
 
 ```yaml
-run: mvn clean package
+runs-on: self-hosted
 ```
 
-## 7. Why is `actions/checkout@v4` important?
+The machine could be an:
 
-It clones the repository code into the runner.
+```text
+EC2 instance
+On-premise server
+Virtual machine
+Physical server
+```
+
+Simple way to remember:
+
+```text
+GitHub-hosted → GitHub manages the machine
+
+Self-hosted → We manage the machine
+```
+
+---
+
+## 10. What is an action in GitHub Actions?
+
+**Answer:**
+
+An **action is a reusable piece of automation**.
+
+Instead of writing all the commands ourselves, we can use an existing action.
+
+For example:
+
+```yaml
+- uses: actions/checkout@v4
+```
+
+This action checks out our repository code onto the runner.
+
+Another example:
+
+```yaml
+- uses: actions/setup-java@v4
+```
+
+This action sets up Java on the runner.
+
+So:
+
+```text
+Action = Reusable automation
+```
+
+---
+
+## 11. What is the difference between `uses` and `run`?
+
+**Answer:**
+
+`uses` uses an existing reusable action.
+
+```yaml
+- uses: actions/checkout@v4
+```
+
+`run` executes a command directly on the runner.
+
+```yaml
+- run: mvn clean package
+```
+
+Think of it as:
+
+```text
+uses → Use something that already exists
+
+run  → Execute my own command
+```
 
 Example:
 
 ```yaml
 steps:
+
   - uses: actions/checkout@v4
+
+  - run: mvn clean package
 ```
 
-Without checkout:
+Here:
 
-- Source code is unavailable
-- Build commands fail
+```text
+checkout → uses an action
+Maven    → runs a command
+```
 
-## 8. Can a workflow contain multiple jobs?
+---
+
+## 12. Why do we use `actions/checkout`?
+
+**Answer:**
+
+The runner needs our source code before it can build or test the application.
+
+We use:
+
+```yaml
+- uses: actions/checkout@v4
+```
+
+to check out the repository code onto the runner.
+
+The flow is:
+
+```text
+GitHub Repository
+       ↓
+actions/checkout
+       ↓
+Code available on Runner
+       ↓
+Build / Test / Scan
+```
+
+Without checking out the code, commands such as:
+
+```bash
+mvn clean package
+```
+
+would not have the application source code to work with.
+
+---
+
+## 13. Can one workflow have multiple jobs?
 
 **Answer:**
 
 Yes.
 
-Example:
+For example:
 
 ```yaml
 jobs:
+
   build:
     runs-on: ubuntu-latest
+    steps:
+      - run: mvn clean package
 
   test:
     runs-on: ubuntu-latest
+    steps:
+      - run: mvn test
 
   deploy:
     runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy"
 ```
 
-By default, jobs run in parallel.
+The workflow contains three jobs:
 
-## 9. How do you make jobs run sequentially?
+```text
+Workflow
+   │
+   ├── Build
+   ├── Test
+   └── Deploy
+```
+
+---
+
+## 14. Do multiple jobs run sequentially by default?
 
 **Answer:**
 
-Using the `needs` keyword.
+No.
+
+If there is no dependency between jobs, GitHub Actions can run them **in parallel**.
+
+For example:
+
+```text
+        ┌── Build
+Workflow┤
+        ├── Test
+        └── Deploy
+```
+
+If we want one job to wait for another, we use `needs`.
+
+---
+
+## 15. How do you make jobs run sequentially?
+
+**Answer:**
+
+Use the `needs` keyword.
 
 Example:
 
 ```yaml
 jobs:
+
   build:
     runs-on: ubuntu-latest
+    steps:
+      - run: mvn clean package
 
   test:
     needs: build
     runs-on: ubuntu-latest
+    steps:
+      - run: mvn test
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy"
 ```
 
-Execution flow:
+Now the flow is:
 
 ```text
 Build
@@ -385,16 +547,23 @@ Test
 Deploy
 ```
 
-## 10. What happens if a step fails?
+`needs` means:
+
+> This job depends on another job completing successfully.
+
+---
+
+## 16. What happens when a step fails?
 
 **Answer:**
 
-The current job stops immediately and subsequent steps are not executed.
+By default, if a step fails, the remaining steps in that job are not executed.
 
 Example:
 
 ```yaml
 steps:
+
   - run: echo "Step 1"
 
   - run: exit 1
@@ -405,9 +574,271 @@ steps:
 Result:
 
 ```text
-Step 1 ✅
-Step 2 ❌
-Step 3 Not Executed
+Step 1        ✅
+Step 2        ❌
+Step 3        ⏭️ Skipped
 ```
 
-Unless failure handling is configured, the job and workflow are marked as failed.
+The job is marked as failed.
+
+Failure handling can be customized using conditions such as:
+
+```yaml
+if: always()
+```
+
+We will cover conditions separately.
+
+---
+
+## 17. What is the difference between a workflow, job, step, runner and action?
+
+**Answer:**
+
+This is one of the most important things to understand.
+
+Think about a CI/CD pipeline like this:
+
+```text
+WORKFLOW
+│
+├── JOB
+│    │
+│    ├── STEP
+│    ├── STEP
+│    └── STEP
+│
+└── JOB
+     │
+     ├── STEP
+     └── STEP
+```
+
+The **runner** is the machine where each job executes.
+
+An **action** is something a step can use to perform reusable work.
+
+### Easy way to remember:
+
+```text
+Workflow → Complete pipeline
+
+Job      → Group of tasks
+
+Step     → Individual task
+
+Runner   → Machine executing the job
+
+Action   → Reusable automation
+```
+
+---
+
+## 18. Can you explain a GitHub Actions workflow from beginning to end?
+
+**Answer:**
+
+Yes.
+
+For example:
+
+```yaml
+name: Java CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build Application
+        run: mvn clean package
+
+      - name: Run Tests
+        run: mvn test
+```
+
+The execution flow is:
+
+```text
+Developer pushes code
+        ↓
+push trigger detects it
+        ↓
+Workflow starts
+        ↓
+GitHub provides Ubuntu runner
+        ↓
+Checkout repository
+        ↓
+Setup Java
+        ↓
+Build application
+        ↓
+Run tests
+```
+
+So when explaining it in an interview, you can say:
+
+> "I define my CI/CD process in a YAML workflow under `.github/workflows`. The `on` section defines when the workflow runs. Inside `jobs`, I define the work that needs to be performed. Each job runs on a runner, and each job contains multiple steps. I use `uses` for reusable GitHub Actions and `run` for executing shell commands."
+
+---
+
+## 19. What is the basic structure you should remember?
+
+**Answer:**
+
+You don't need to memorize the entire YAML.
+
+Just remember this structure:
+
+```yaml
+name: CI Pipeline
+
+on:
+  push:
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - run: mvn clean package
+```
+
+Then remember:
+
+```text
+name
+ ↓
+When? → on
+ ↓
+What work? → jobs
+ ↓
+Where? → runs-on
+ ↓
+What tasks? → steps
+ ↓
+Reusable action? → uses
+ ↓
+Command? → run
+```
+
+That's the core of GitHub Actions.
+
+---
+
+# Interview Quick Revision
+
+### What is GitHub Actions?
+
+CI/CD automation platform integrated with GitHub.
+
+### What is a workflow?
+
+Complete automated process defined in a YAML file.
+
+### Where are workflows stored?
+
+```text
+.github/workflows/
+```
+
+### What is a job?
+
+A group of steps executed on a runner.
+
+### What is a step?
+
+An individual task inside a job.
+
+### What is a runner?
+
+Machine that executes a job.
+
+### What is an action?
+
+Reusable automation component.
+
+### What does `on` do?
+
+Defines when the workflow starts.
+
+### What does `runs-on` do?
+
+Defines the runner used by a job.
+
+### What does `uses` do?
+
+Uses a reusable action.
+
+### What does `run` do?
+
+Executes a shell command.
+
+### How do jobs run sequentially?
+
+Using:
+
+```yaml
+needs:
+```
+
+### What happens when a step fails?
+
+The job normally stops at that step and is marked failed.
+
+---
+
+# One Diagram to Remember
+
+```text
+                    GitHub Actions
+                         │
+                    ┌────▼────┐
+                    │ Workflow │
+                    └────┬────┘
+                         │
+                      on:
+                    "When?"
+                         │
+                    ┌────▼────┐
+                    │  Jobs   │
+                    └────┬────┘
+                         │
+                  ┌──────┴──────┐
+                  │             │
+               Build          Deploy
+                  │             │
+                Runner        Runner
+                  │             │
+                Steps         Steps
+                  │             │
+             ┌────┴────┐       │
+             │         │       │
+           uses       run      run
+             │         │       │
+           Action    Command  Command
+```
+
+**If you understand this diagram, you understand the basic structure of GitHub Actions.** The next files can then focus only on new concepts like **secrets, environments, triggers, artifacts, permissions, conditions, security scanning, and ECR**, instead of repeating these fundamentals.
