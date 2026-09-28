@@ -506,6 +506,26 @@ Workflow┤
 
 If we want one job to wait for another, we use `needs`.
 
+```
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: mvn clean package
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - run: mvn test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy"
+```
 ---
 
 ## 15. How do you make jobs run sequentially?
