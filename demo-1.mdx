@@ -1,455 +1,797 @@
-# Create a simple CI pipeline
+# GitHub Actions — Secrets & Environments
 
-https://github.com/pray-12/github-action-project
-```yaml
-name: CI Pipeline
+## 1. What are GitHub Actions Secrets?
 
-on:
-  push:
-    branches:
-      - main
+**Answer:**
 
-jobs:
-  Build:
-    runs-on: ubuntu-latest
+GitHub Secrets are **encrypted values used to store sensitive information** such as passwords, API tokens, cloud credentials, and SSH keys.
 
-    steps:
-      - uses: actions/checkout@v4
+Examples:
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+- AWS credentials
+- Docker Hub password
+- SonarQube token
+- Slack webhook
+- Database password
 
-      - name: Compile Application
-        run: mvn clean compile
-
-  Testing:
-    runs-on: ubuntu-latest
-    needs: Build
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Run Tests
-        run: mvn test
-
-      - name: Checkstyle Analysis
-        run: mvn checkstyle:checkstyle
-```
-
-# GitHub Actions Interview Questions and Answers
-
-## 1. What is the purpose of `needs` in GitHub Actions?
-
-### Answer
-
-The `needs` keyword is used to define job dependencies.
-
-It ensures that a job runs only after the specified job(s) complete successfully.
-
-### Example
+Instead of putting sensitive information directly in the workflow:
 
 ```yaml
-jobs:
-  Build:
-    runs-on: ubuntu-latest
-
-  Testing:
-    runs-on: ubuntu-latest
-    needs: Build
+run: docker login -u myuser -p mypassword
 ```
 
-In this example:
+we store it as a GitHub Secret:
 
-- `Build` runs first.
-- `Testing` starts only if `Build` succeeds.
-- If `Build` fails, `Testing` is skipped.
+```yaml
+run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+```
 
-### Benefits
+### Explanation
 
-- Controls execution order.
-- Creates CI/CD pipelines with multiple stages.
-- Prevents unnecessary job execution when a dependency fails.
-
----
-
-## 2. What is the difference between `mvn compile`, `mvn package`, and `mvn install`?
-
-### Answer
-
-These commands represent different phases of the Maven lifecycle.
-
-| Command | Purpose |
-|----------|----------|
-| `mvn compile` | Compiles the source code |
-| `mvn package` | Compiles, tests, and creates a JAR/WAR |
-| `mvn install` | Packages the application and installs it into the local Maven repository |
-
-### Lifecycle Flow
+The important point is:
 
 ```text
-validate
-compile
-test
-package
-verify
-install
-deploy
+Don't put sensitive data in code
+              ↓
+Store it as a GitHub Secret
+              ↓
+Reference it using secrets.NAME
 ```
 
-### Example
+---
 
-```bash
-mvn compile
-```
+## 2. Where do you create GitHub Repository Secrets?
 
-Only compiles source code.
+**Answer:**
 
-```bash
-mvn package
-```
-
-Creates a JAR/WAR file.
-
-```bash
-mvn install
-```
-
-Creates the artifact and stores it in:
+For repository-level secrets:
 
 ```text
-~/.m2/repository
+Repository
+    ↓
+Settings
+    ↓
+Secrets and variables
+    ↓
+Actions
+    ↓
+New repository secret
 ```
 
----
-
-## 3. Why do we use `actions/checkout@v4`?
-
-### Answer
-
-GitHub runners do not automatically contain your repository code.
-
-`actions/checkout@v4` downloads the repository contents into the runner.
-
-### Example
-
-```yaml
-- uses: actions/checkout@v4
-```
-
-Without checkout:
-
-```bash
-mvn test
-```
-
-would fail because the project files do not exist on the runner.
-
-### Benefits
-
-- Downloads source code.
-- Supports private repositories.
-- Allows builds, tests, and deployments.
-
----
-
-## 4. What does `actions/setup-java` do?
-
-### Answer
-
-`actions/setup-java` installs and configures Java on the GitHub Actions runner.
-
-### Example
-
-```yaml
-- uses: actions/setup-java@v4
-  with:
-    distribution: temurin
-    java-version: '17'
-```
-
-### What It Does
-
-- Installs Java.
-- Sets `JAVA_HOME`.
-- Adds Java to the system PATH.
-- Supports Maven dependency caching.
-
-### Supported Distributions
-
-- Temurin
-- Oracle
-- Corretto
-- Zulu
-
----
-
-## 5. What happens if the Build job fails?
-
-### Answer
-
-Any job depending on the failed job will not execute.
-
-### Example
-
-```yaml
-Testing:
-  needs: Build
-```
-
-If:
+For example:
 
 ```text
-Build = Failed
+Name: DOCKER_USERNAME
+Value: myusername
 ```
 
-then:
+and:
 
 ```text
-Testing = Skipped
+Name: DOCKER_PASSWORD
+Value: ********
 ```
 
-### Benefits
-
-- Saves CI resources.
-- Prevents invalid deployments.
-- Maintains pipeline integrity.
-
----
-
-## 6. Why are jobs executed on separate runners?
-
-### Answer
-
-Each GitHub Actions job runs in an isolated virtual machine.
-
-### Example
+Then the workflow can access them using:
 
 ```yaml
-Build
-```
-
-runs on:
-
-```text
-Runner A
-```
-
-```yaml
-Testing
-```
-
-runs on:
-
-```text
-Runner B
-```
-
-### Advantages
-
-- Security isolation.
-- Parallel execution.
-- Independent environments.
-- Better scalability.
-
-### Important
-
-Files created in one job are not automatically available in another job.
-
----
-
-## 7. What is Checkstyle and why is it used?
-
-### Answer
-
-Checkstyle is a static code analysis tool used to enforce coding standards in Java projects.
-
-### Example
-
-```bash
-mvn checkstyle:checkstyle
-```
-
-### Checks Performed
-
-- Naming conventions
-- Method length
-- Indentation
-- Unused imports
-- Formatting standards
-
-### Benefits
-
-- Improves code readability.
-- Maintains coding consistency.
-- Detects style violations early.
-
-### Sample Violation
-
-```java
-public class test {
-}
-```
-
-Class name should start with an uppercase letter.
-
-Correct:
-
-```java
-public class Test {
-}
+${{ secrets.DOCKER_USERNAME }}
+${{ secrets.DOCKER_PASSWORD }}
 ```
 
 ---
 
-## 8. How can artifacts be shared between jobs?
+## 3. How do you use a Secret inside a GitHub Actions workflow?
 
-### Answer
+**Answer:**
 
-Artifacts can be uploaded in one job and downloaded in another.
-
-### Upload Artifact
+We use:
 
 ```yaml
-- name: Upload Artifact
-  uses: actions/upload-artifact@v4
-  with:
-    name: app
-    path: target/*.jar
+${{ secrets.SECRET_NAME }}
 ```
-
-### Download Artifact
-
-```yaml
-- name: Download Artifact
-  uses: actions/download-artifact@v4
-  with:
-    name: app
-```
-
-### Use Cases
-
-- Sharing build outputs.
-- Deployment packages.
-- Test reports.
-- Security scan reports.
-
----
-
-## 9. What is the difference between steps and jobs?
-
-### Answer
-
-### Step
-
-A single task within a job.
 
 Example:
 
 ```yaml
 steps:
-  - uses: actions/checkout@v4
-
-  - run: mvn test
+  - name: Login to DockerHub
+    run: |
+      docker login \
+        -u ${{ secrets.DOCKER_USERNAME }} \
+        -p ${{ secrets.DOCKER_PASSWORD }}
 ```
 
-### Job
+### Explanation
 
-A collection of steps executed on the same runner.
+If GitHub has:
+
+```text
+DOCKER_USERNAME = myuser
+DOCKER_PASSWORD = mypassword
+```
+
+GitHub makes those values available to the workflow when referenced through the `secrets` context.
+
+Conceptually:
+
+```text
+GitHub Secret
+     ↓
+DOCKER_USERNAME
+     ↓
+${{ secrets.DOCKER_USERNAME }}
+     ↓
+Workflow
+```
+
+---
+
+## 4. What is the difference between Secrets and normal Environment Variables?
+
+**Answer:**
+
+Secrets are intended for **sensitive information**, while normal environment variables are generally used for **non-sensitive configuration**.
+
+| Secrets | Environment Variables |
+|---|---|
+| Used for sensitive data | Usually non-sensitive data |
+| Encrypted at rest | Not necessarily secret |
+| Example: password | Example: application name |
+| Example: API token | Example: environment name |
+| Accessed using `secrets.NAME` | Accessed using `env.NAME` |
+
+Example:
+
+```yaml
+env:
+  APP_NAME: employee-app
+```
+
+Here `APP_NAME` isn't sensitive.
+
+For sensitive information:
+
+```yaml
+env:
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+```
+
+### Interview point
+
+Don't say **"all environment variables are visible in logs."** Whether a value appears in logs depends on how it is used and whether it is printed.
+
+---
+
+## 5. Does GitHub automatically hide Secrets in logs?
+
+**Answer:**
+
+GitHub attempts to **mask the value of a secret** when it appears in workflow logs.
+
+For example, instead of showing:
+
+```text
+mypassword123
+```
+
+the log may show:
+
+```text
+***
+```
+
+### Explanation
+
+This helps prevent accidental exposure.
+
+However, you should **never intentionally print secrets** or assume masking makes it safe to expose them.
+
+Bad practice:
+
+```yaml
+- run: echo "${{ secrets.DOCKER_PASSWORD }}"
+```
+
+Better:
+
+```yaml
+- run: docker login ...
+```
+
+Use the secret only where it is required.
+
+---
+
+# Organization Secrets
+
+## 6. What are Repository Secrets?
+
+**Answer:**
+
+Repository Secrets belong to a specific repository.
+
+For example:
+
+```text
+GitHub Organization
+        ↓
+    Repository A
+        ↓
+    AWS_SECRET
+```
+
+The secret is configured for that repository and isn't automatically available to other repositories.
+
+Example:
+
+```text
+employee-app
+    ↓
+DOCKER_PASSWORD
+```
+
+Another repository:
+
+```text
+shopping-app
+```
+
+doesn't automatically get access to `employee-app`'s repository secret.
+
+---
+
+## 7. What are Organization Secrets?
+
+**Answer:**
+
+Organization Secrets are secrets managed at the **GitHub organization level** and can be made available to selected repositories.
+
+Example:
+
+```text
+             Organization
+                  │
+           DOCKER_PASSWORD
+                  │
+       ┌──────────┼──────────┐
+       ↓          ↓          ↓
+    Repo A      Repo B      Repo C
+```
+
+### Why use them?
+
+Suppose a company has many repositories and needs the same approved credential or token across selected repositories.
+
+Instead of configuring it individually in every repository, the organization can manage it centrally.
+
+---
+
+# GitHub Environments
+
+## 8. What is a GitHub Environment?
+
+**Answer:**
+
+A GitHub Environment represents a **deployment target**, such as:
+
+```text
+Development
+Staging
+Production
+```
+
+An environment can have:
+
+- Environment-specific secrets
+- Required reviewers
+- Deployment protection rules
+- Wait timers
+- Branch/tag restrictions
+
+### Example
+
+```text
+Development
+    ↓
+Development AWS credentials
+
+Staging
+    ↓
+Staging AWS credentials
+
+Production
+    ↓
+Production AWS credentials
+```
+
+This is useful because Dev and Production shouldn't necessarily use the same credentials.
+
+---
+
+## 9. How do you associate a job with an Environment?
+
+**Answer:**
+
+Use the `environment` keyword.
+
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy application
+        run: echo "Deploying to production"
+```
+
+Here:
+
+```yaml
+environment: production
+```
+
+associates the deployment job with the **production environment**.
+
+### Explanation
+
+GitHub can then apply the rules configured for that environment.
+
+For example:
+
+```text
+Deploy job
+    ↓
+production environment
+    ↓
+Approval required?
+    ↓
+Yes
+    ↓
+Wait for reviewer
+    ↓
+Approved
+    ↓
+Continue deployment
+```
+
+---
+
+## 10. What are Environment Secrets?
+
+**Answer:**
+
+Environment Secrets are secrets that belong to a specific GitHub Environment.
+
+For example:
+
+```text
+Development
+    ↓
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+
+Production
+    ↓
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+```
+
+The actual values can be different.
+
+### Example
+
+```yaml
+jobs:
+  deploy:
+    environment: production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy
+        run: ./deploy.sh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+```
+
+The job is associated with `production`, so GitHub uses the secrets available to that environment.
+
+---
+
+# Deployment Protection
+
+## 11. What are Deployment Protection Rules?
+
+**Answer:**
+
+Deployment protection rules are controls that help prevent unauthorized or accidental deployments.
+
+Examples include:
+
+- Required reviewers
+- Wait timers
+- Branch/tag restrictions
+- Other configured deployment protections
+
+For example:
+
+```text
+Developer pushes code
+        ↓
+CI pipeline
+        ↓
+Build
+        ↓
+Test
+        ↓
+Production deployment
+        ↓
+Approval required
+        ↓
+Reviewer approves
+        ↓
+Deployment
+```
+
+---
+
+## 12. How do Environment Approvals work?
+
+**Answer:**
+
+If the Production environment requires an approved reviewer, the deployment job pauses before accessing the protected environment and continues after approval.
 
 Example:
 
 ```yaml
 jobs:
-  Build:
+  deploy:
+    environment: production
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - run: mvn compile
+      - name: Deploy
+        run: echo "Deploying to production"
 ```
 
-### Comparison
+The workflow might execute like:
 
-| Steps | Jobs |
-|---------|---------|
-| Run within a job | Contain multiple steps |
-| Share the same runner | Run on separate runners |
-| Execute sequentially | Can execute in parallel |
-| Share filesystem | Do not share filesystem |
+```text
+Build
+  ↓
+Test
+  ↓
+Deploy job
+  ↓
+⏸ Waiting for approval
+  ↓
+Reviewer approves
+  ↓
+Deploy continues
+```
+
+### Important interview point
+
+The approval is configured through the **Environment settings**, not by writing something like `approval: true` in the YAML.
 
 ---
 
-## 10. How would you trigger this workflow only on pull requests?
+# Secrets in Commands
 
-### Answer
+## 13. Can you use Secrets inside `run` commands?
 
-Use the `pull_request` event instead of `push`.
+**Answer:**
 
-### Example
+Yes.
+
+For example:
 
 ```yaml
-on:
-  pull_request:
-    branches:
-      - main
+steps:
+  - name: Login to DockerHub
+    run: |
+      docker login \
+        -u "${{ secrets.DOCKER_USERNAME }}" \
+        -p "${{ secrets.DOCKER_PASSWORD }}"
 ```
 
-### Trigger Conditions
-
-The workflow runs when:
-
-- A pull request is created.
-- A pull request is updated.
-- New commits are pushed to the pull request.
-
-### Example Workflow
+The secret is referenced using:
 
 ```yaml
-name: PR Validation
+${{ secrets.SECRET_NAME }}
+```
 
-on:
-  pull_request:
-    branches:
-      - main
+### Better practice
 
+For many tools, it is preferable to pass credentials through environment variables or the tool's supported authentication mechanism rather than putting secrets directly into command arguments.
+
+For example:
+
+```yaml
+steps:
+  - name: Run deployment
+    env:
+      API_TOKEN: ${{ secrets.API_TOKEN }}
+    run: ./deploy.sh
+```
+
+Then the script can use the environment variable.
+
+---
+
+# Real CI/CD Example
+
+## 14. How would you use Secrets and Environments in a real CI/CD pipeline?
+
+**Answer:**
+
+Suppose we have:
+
+```text
+Developer
+    ↓
+GitHub
+    ↓
+Build
+    ↓
+Test
+    ↓
+Docker Build
+    ↓
+Docker Hub
+    ↓
+Production
+```
+
+We could have:
+
+```text
+Repository Secrets
+    ↓
+Docker credentials
+
+Production Environment
+    ↓
+Production deployment credentials
+    ↓
+Required reviewer
+```
+
+Example:
+
+```yaml
 jobs:
-  Test:
+
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - run: mvn test
+      - name: Build application
+        run: mvn clean package
+
+
+  docker:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to DockerHub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login \
+            -u "$DOCKER_USERNAME" \
+            --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t myapp:latest .
+
+      - name: Push image
+        run: docker push myapp:latest
+
+
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy application
+        run: echo "Deploying to production"
 ```
 
-### Why Use Pull Request Triggers?
+### Flow
 
-- Validate code before merging.
-- Run automated tests.
-- Enforce code quality checks.
-- Prevent broken code from reaching the main branch.
+```text
+                 ┌── Repository Secret
+                 │      Docker credentials
+                 │
+Build → Docker Login → Build Image → Push Image
+                                           │
+                                           ↓
+                                     Production
+                                           │
+                                    Environment
+                                           │
+                                     Approval
+                                           │
+                                           ↓
+                                       Deploy
+```
 
 ---
 
-# Quick Revision
+# Common Interview Questions
 
-| Topic | Key Point |
-|---------|-----------|
-| `needs` | Creates job dependency |
-| `mvn compile` | Compiles source code |
-| `mvn package` | Creates JAR/WAR |
-| `mvn install` | Installs artifact in local Maven repository |
-| `checkout` | Downloads repository code |
-| `setup-java` | Installs Java on runner |
-| Build Failure | Dependent jobs are skipped |
-| Separate Runners | Jobs are isolated |
-| Checkstyle | Enforces coding standards |
-| Artifacts | Share files between jobs |
-| Step | Single task |
-| Job | Collection of steps |
-| Pull Request Trigger | Runs workflow for PR validation |
+## 15. Why should you not hardcode AWS credentials in a workflow?
+
+**Answer:**
+
+Because anyone with access to the workflow source could potentially see the credentials.
+
+Bad:
+
+```yaml
+env:
+  AWS_SECRET_ACCESS_KEY: "my-secret-key"
+```
+
+Better:
+
+```yaml
+env:
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+```
+
+Even better for AWS workloads, when supported, is to use **OIDC with an AWS IAM role**, so the workflow doesn't need a long-lived AWS access key at all.
+
+---
+
+## 16. What is the difference between Repository Secrets and Environment Secrets?
+
+**Answer:**
+
+**Repository Secret:**
+
+```text
+Repository
+    ↓
+Secret
+    ↓
+Available to authorized workflows in that repository
+```
+
+**Environment Secret:**
+
+```text
+Repository
+    ↓
+Production Environment
+    ↓
+Production Secret
+```
+
+Environment Secrets are useful when you want **different credentials/configuration for different deployment targets** and want environment protection rules around production.
+
+---
+
+## 17. Why use Environments instead of just Repository Secrets?
+
+**Answer:**
+
+Environments give us more than just secrets.
+
+They allow us to combine:
+
+```text
+Environment
+    ├── Environment secrets
+    ├── Required reviewers
+    ├── Deployment protection
+    ├── Wait timers
+    └── Branch/tag restrictions
+```
+
+For example, Production can require approval while Development can deploy automatically.
+
+---
+
+## 18. What is the difference between Secret and Environment?
+
+**Answer:**
+
+This is an important distinction.
+
+**Secret = sensitive value**
+
+```text
+AWS_SECRET_ACCESS_KEY
+DOCKER_PASSWORD
+SONAR_TOKEN
+```
+
+**Environment = deployment target + its configuration/protection**
+
+```text
+Development
+Staging
+Production
+```
+
+Think:
+
+```text
+             Environment
+                  ↓
+       ┌──────────┴──────────┐
+       ↓                     ↓
+ Environment Secrets    Protection Rules
+       ↓                     ↓
+ AWS credentials        Approval
+```
+
+---
+
+# ⭐ Interview Scenario
+
+## 19. How would you securely deploy an application to Production using GitHub Actions?
+
+**Answer:**
+
+> "I would store sensitive credentials as GitHub Secrets instead of hardcoding them in the workflow. For different deployment targets, I would create GitHub Environments such as Development, Staging, and Production. Production would have its own environment-specific secrets and protection rules such as required reviewers. In the workflow, I would associate the deployment job with the Production environment using the `environment` keyword. The deployment would then wait for the required approval before continuing. For AWS authentication, I would prefer GitHub OIDC with an IAM role instead of long-lived AWS access keys where possible."
+
+### Simple architecture
+
+```text
+Developer
+    ↓
+GitHub Push
+    ↓
+Build
+    ↓
+Test
+    ↓
+Docker Build
+    ↓
+Push Image
+    ↓
+Production Environment
+    ↓
+Approval
+    ↓
+AWS
+    ↓
+Deploy
+```
+
+---
+
+# ⭐ Quick Revision
+
+Remember these 5 points:
+
+```text
+Secret
+  → Stores sensitive data
+
+Repository Secret
+  → Secret for a repository
+
+Organization Secret
+  → Secret managed at organization level
+
+Environment
+  → Deployment target + protection + environment-specific secrets
+
+needs
+  → Controls job dependency
+```
+
+> **Important:** GitHub Secrets are encrypted, and GitHub attempts to mask secret values in workflow logs. However, masking is not a guarantee against every possible form of exposure. Never intentionally print secrets.
