@@ -32,13 +32,13 @@ Download Later
 
 ## 2. Why are Artifacts used?
 
+an artifact is a finalized product created during a build process.
 
-Artifacts are used to:
+In a CI/CD pipeline, an artifact is the immutable, single source of truth for a deployment. We need artifacts because they guarantee that the exact same code we built and tested in staging is what goes live in production, eliminating environment-specific bugs.
 
-- Share files between jobs
-- Store build outputs
-- Preserve reports
-- Download files after workflow completion
+For example, in my previous projects, instead of passing raw source code to our deployment servers, our CI pipeline compiled the application into a Docker image [or a .jar/.npm package, depending on your stack]. We pushed this image to an Artifact Registry with a unique commit hash. Our Kubernetes cluster then pulled that exact image. This meant we never ran into 'it works on my machine' issues, and our deployment rollbacks took less than a minute.
+
+**Track Versions:** Keep a precise history of what changed, when it changed, and who approved it.
 
 ---
 
